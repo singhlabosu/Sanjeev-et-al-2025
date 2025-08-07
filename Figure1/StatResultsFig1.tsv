@@ -1,0 +1,35 @@
+.y.	group1	group2	n1	n2	statistic	p	p.adj	p.adj.signif	Alternative hypothesis	Test and correction applied	Multiple comparison correction	Test Sidedness
+Cytoplasmic rank percentile	Down in CHX	No  Change	880	7177	3033418	0.056	0.168	ns	alternative hypothesis: true location shift is not equal to 0	Wilcoxon rank sum test with continuity correction	Bonferroni	Two sided
+Cytoplasmic rank percentile	Down in CHX	Up in CHX	880	988	285532	1.26E-37	3.78E-37	****	alternative hypothesis: true location shift is not equal to 0	Wilcoxon rank sum test with continuity correction	Bonferroni	Two sided
+Cytoplasmic rank percentile	No  Change	Up in CHX	7177	988	2423361	1.08E-58	3.24E-58	****	alternative hypothesis: true location shift is not equal to 0	Wilcoxon rank sum test with continuity correction	Bonferroni	Two sided
+log10 Normalized Ribosome Occupancy	Down in CHX	No  Change	842	6804	2662385	8.23E-04	0.002	**	alternative hypothesis: true location shift is not equal to 0	Wilcoxon rank sum test with continuity correction	Bonferroni	Two sided
+log10 Normalized Ribosome Occupancy	Down in CHX	Up in CHX	842	978	280473.5	7.73E-32	2.32E-31	****	alternative hypothesis: true location shift is not equal to 0	Wilcoxon rank sum test with continuity correction	Bonferroni	Two sided
+log10 Normalized Ribosome Occupancy	No  Change	Up in CHX	6804	978	2452468.5	1.91E-40	5.73E-40	****	alternative hypothesis: true location shift is not equal to 0	Wilcoxon rank sum test with continuity correction	Bonferroni	Two sided
+log half-life (Aggregate)	Down in CHX	No  Change	851	6843	3420439	8.42E-17	2.53E-16	****	alternative hypothesis: true location shift is not equal to 0	Wilcoxon rank sum test with continuity correction	Bonferroni	Two sided
+log half-life (Aggregate)	Down in CHX	Up in CHX	851	979	493909	6.89E-12	2.07E-11	****	alternative hypothesis: true location shift is not equal to 0	Wilcoxon rank sum test with continuity correction	Bonferroni	Two sided
+log half-life (Aggregate)	No  Change	Up in CHX	6843	979	3398913	0.456	1	ns	alternative hypothesis: true location shift is not equal to 0	Wilcoxon rank sum test with continuity correction	Bonferroni	Two sided
+Cytoplasmic rank percentile	Down in E117R	No  Change	2660	4767	6316048	0.786	1	ns	alternative hypothesis: true location shift is not equal to 0	Wilcoxon rank sum test with continuity correction	Bonferroni	Two sided
+Cytoplasmic rank percentile	Down in E117R	Up in E117R	2660	2479	3234047	0.236	0.708	ns	alternative hypothesis: true location shift is not equal to 0	Wilcoxon rank sum test with continuity correction	Bonferroni	Two sided
+Cytoplasmic rank percentile	No  Change	Up in E117R	4767	2479	5806963	0.228	0.684	ns	alternative hypothesis: true location shift is not equal to 0	Wilcoxon rank sum test with continuity correction	Bonferroni	Two sided
+log10 Normalized Ribosome Occupancy	Down in E117R	No  Change	2509	4365	5440990.5	0.659	1	ns	alternative hypothesis: true location shift is not equal to 0	Wilcoxon rank sum test with continuity correction	Bonferroni	Two sided
+log10 Normalized Ribosome Occupancy	Down in E117R	Up in E117R	2509	2294	2800677	0.108	0.324	ns	alternative hypothesis: true location shift is not equal to 0	Wilcoxon rank sum test with continuity correction	Bonferroni	Two sided
+log10 Normalized Ribosome Occupancy	No  Change	Up in E117R	4365	2294	4904279	0.17	0.51	ns	alternative hypothesis: true location shift is not equal to 0	Wilcoxon rank sum test with continuity correction	Bonferroni	Two sided
+log half-life (Aggregate)	Down in E117R	No  Change	2519	4416	5607721	0.568	1	ns	alternative hypothesis: true location shift is not equal to 0	Wilcoxon rank sum test with continuity correction	Bonferroni	Two sided
+log half-life (Aggregate)	Down in E117R	Up in E117R	2519	2315	3277704	8.18E-14	2.45E-13	****	alternative hypothesis: true location shift is not equal to 0	Wilcoxon rank sum test with continuity correction	Bonferroni	Two sided
+log half-life (Aggregate)	No  Change	Up in E117R	4416	2315	5707116	3.70E-15	1.11E-14	****	alternative hypothesis: true location shift is not equal to 0	Wilcoxon rank sum test with continuity correction	Bonferroni	Two sided
+												
+												
+												
+												
+												
+												
+												
+												
+												
+												
+												
+												
+												
+												
+												
+												

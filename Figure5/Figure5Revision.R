@@ -1,0 +1,537 @@
+###Figure5 plots
+
+library(tidyverse)
+library(ggrepel)
+library(patchwork)
+library(tximport)
+library(DESeq2)
+library(ggsignif)
+
+
+
+setwd("~/OneDrive - The Ohio State University/Singhlab/Bioinfo/PYMpaperFiguresUpdate/Figure5/")
+
+#ncEJC NMD plot####
+
+UTR3quartiles<-read_tsv("ncEJCquartiles/HEKgene_groups.txt")
+table(UTR3quartiles$annotation_KD_method)
+
+SMGnorm<-UTR3quartiles%>%filter(annotation_KD_method=="50_all_SMG_normcounts")
+colors <- c("#CCCCCC", "#B07C7C", "#A05252", "#801818")
+
+
+
+
+
+library(ggplot2)
+library(dplyr)
+library(ggpubr)
+
+# Define quartile counts
+quartile_counts <- SMGnorm %>%
+  group_by(quartile) %>%
+  dplyr::summarise(n = n()) %>%
+  mutate(label = paste0(quartile, " (n=", n, ")"))
+
+# Map counts to color labels
+quartile_labels <- setNames(quartile_counts$label, quartile_counts$quartile)
+
+# Wilcoxon test p-values
+# Wilcoxon test p-values
+p_values <- pairwise.wilcox.test(
+  SMGnorm$log2foldchange, 
+  SMGnorm$quartile, 
+  p.adjust.method = "bonferroni"
+)$p.value
+
+p_Q1_Q2 <- p_values[[1]]
+p_Q2_Q3 <-p_values[2,2]
+p_Q3_Q4 <-p_values[3,3]
+
+raw_pvals <- c(p_Q1_Q2, p_Q2_Q3, p_Q3_Q4)
+
+
+library(ggtext)  # make sure it's installed
+
+# Rich text labels with color-coded Q1–Q4
+labels <- data.frame(
+  x = -3.2,
+  y = c(1,0.95, 0.90),
+  label = c(
+    paste0("<span style='color:", colors[1], "'>Q1</span> vs <span style='color:", colors[2], "'>Q2</span>: p = ", signif(p_Q1_Q2, 3)),
+    paste0("<span style='color:", colors[2], "'>Q2</span> vs <span style='color:", colors[3], "'>Q3</span>: p = ", signif(p_Q2_Q3, 3)),
+    paste0("<span style='color:", colors[3], "'>Q3</span> vs <span style='color:", colors[4], "'>Q4</span>: p = ", signif(p_Q3_Q4, 3))
+  )
+)
+
+# Plot
+a<-SMGnorm %>%
+  ggplot(aes(log2foldchange, color = quartile)) +
+  geom_vline(aes(xintercept = 0), linewidth = 0.02) +
+  geom_hline(aes(yintercept = 0.5), linewidth = 0.02) +
+  stat_ecdf(geom = "line", linewidth = 0.8) +
+  coord_cartesian(xlim = c(-3, 3)) +
+  scale_color_manual(values = colors, labels = quartile_labels, name = "Quartile") +
+  geom_richtext(
+    data = labels,
+    aes(x = x, y = y, label = label),
+    inherit.aes = FALSE,
+    fill = NA, label.color = NA,  # Remove box and border
+    size = 2, hjust = 0
+  ) +
+  theme_linedraw() +
+  theme(
+    axis.text = element_text(size = 5),
+    axis.title = element_text(size = 7),
+    panel.grid.major = element_blank(), 
+    panel.grid.minor = element_blank(),
+    aspect.ratio = 1,
+    legend.position = c(0.95, 0.05),
+    legend.justification = c(1, 0),
+    legend.title = element_text(size = 6), 
+    legend.text = element_text(size = 5),
+    legend.key = element_blank(),
+    legend.box.background = element_blank(),
+    legend.background = element_blank(),
+    legend.key.size = unit(2, 'mm')
+  ) +
+  labs(
+    y = "Cumulative frequency", 
+    x = "log2FC SMG7KO+SMG6kd vs WT"
+  )
+a
+
+#ncEJC qPCR ####
+file_list <- list.files(path = "ncEJCqPCR", pattern = "\\.csv$", full.names = TRUE)
+
+# Read and bind all .csv files
+qPCR <- file_list %>%
+  map_dfr(read_csv, .id = "source_file")  # Adds filename as identifier
+qPCR$Exp<-"ncEJCtargets"
+table(qPCR$Target)
+library(tidyverse)
+library(Rmisc)
+CqSummary <- summarySE(qPCR, measurevar="Cq", groupvars=c("Sample","Target"))
+
+
+##Calculating delCq
+delcqdf<-tibble()
+for(i in unique(CqSummary$Sample)){
+  print(i)
+  filteredCqsummary<-CqSummary%>%filter(Sample==i)%>%mutate(
+    Delcq = Cq - filter(CqSummary,Sample==i&Target=="ACTB")[,4] )
+  delcqdf<-rbind(delcqdf,filteredCqsummary)}
+
+delcqdf<-mutate(delcqdf, Rel.levels = 2^-Delcq)
+
+#Normalizing to respective DMSO
+#create a column that denotes treatment, cell line and replicate number
+delcqdf<-delcqdf%>%mutate(
+  Sampletype = str_split(Sample,"_",simplify = T)[,2],
+  RepNo = str_split(Sample,"_",simplify = T)[,3],
+  CellLine = str_split(Sample,"_",simplify = T)[,1])
+
+delcqdf<-delcqdf%>%filter(CellLine == "HEK")
+
+finalNormdf<-tibble()
+for(j in unique(delcqdf$RepNo)){
+  print(j)
+  for(i in unique(delcqdf$Target)){
+    print(i)
+    finaldf<-delcqdf%>%filter(RepNo==j&Target==i)
+    finaldf<-finaldf%>%mutate(
+      Rel.Norm.Levels = Rel.levels/filter(finaldf,Sampletype=="DMSO"&Target==i)[,9] )
+    finalNormdf<-rbind(finalNormdf,finaldf)
+  }}
+names(finaldf)
+
+
+library(dplyr)
+
+finalNormdf$Target <- factor(finalNormdf$Target, levels = c(
+  "ACTB", "SRSF3_NOR", "SRSF3_PTC", "FNBP4",
+  "BRD2","PCNT",  "SLC7A5",  "DYNC1H1" , "EPHA2", "MAPK3", "MYH9", 
+  "FOXK1","CAPN1","NOC2L", "DAZAP1", "EIF4G1","USF2" 
+))
+finalNormdf<-finalNormdf%>%mutate(log2fc=log(x = Rel.Norm.Levels,base = 2),
+                                  RepNo = as.numeric(RepNo))
+
+test_results <- data.frame(
+  Target = character(),
+  t_statistic = numeric(),
+  df = numeric(),
+  p_value = numeric(),
+  stringsAsFactors = FALSE
+)
+
+# Loop over each target
+for (tgt in unique(finalNormdf$Target)) {
+  print(tgt)
+  # Subset data for current target
+  sub_df <- finalNormdf %>%
+    filter(Target == tgt, Sampletype %in% c("DMSO", "SMG1i")) %>%
+    dplyr::select(RepNo, Sampletype, log2fc) %>%
+    pivot_wider(names_from = Sampletype, values_from = log2fc)
+  
+  # Skip if insufficient data
+  if (!all(c("DMSO", "SMG1i") %in% names(sub_df))) next
+  if (nrow(sub_df) < 2) next  # at least 2 pairs for meaningful test
+  
+  # Drop rows with missing values
+  sub_df <- drop_na(sub_df, DMSO, SMG1i)
+  
+  # Skip if fewer than 2 complete pairs
+  if (nrow(sub_df) < 2) next
+  
+  # Perform paired, one-tailed t-test
+  test <- t.test(sub_df$SMG1i, sub_df$DMSO, paired = TRUE, alternative = "greater")
+  
+  # Append result
+  test_results <- rbind(test_results, data.frame(
+    Target = tgt,
+    t_statistic = unname(test$statistic),
+    df = unname(test$parameter),
+    p_value = unname(test$p.value)
+  ))
+}
+# Bonferroni correction
+test_results <- test_results %>%
+  mutate(p_adjusted = p.adjust(p_value, method = "bonferroni"))
+
+# View final result
+test_results
+
+b<-finalNormdf %>% filter(Target != "TRIM28")%>%
+  ggplot(aes(Target, Rel.Norm.Levels, fill = Sampletype)) +
+  geom_hline(yintercept = 1, size = 0.5, linetype =3, color = "grey")+
+  stat_summary(fun = mean, geom = "bar", position = position_dodge(width = 0.6), width = 0.6) +
+  stat_summary(fun.data = mean_se, geom = "errorbar", width = 0.2, position = position_dodge(width = 0.6)) +
+  geom_point(aes(group = Sampletype),
+             shape = 1, size = 0.3,
+             position = position_dodge(width = 0.6)) +
+  scale_fill_manual(values = c(colors[1],colors[3]))+
+  theme_classic() +
+  labs(#title = "Normalized RNA levels",
+    #subtitle = "3 Bio replicates, normalized to BACT and DMSO",
+    x = "Targets",y="Relative RNA levels") + 
+  theme(panel.grid.major = element_line(linetype = "blank"), 
+        panel.grid.minor = element_line(linetype = "blank"),
+        axis.text.x = element_text(size = 5,angle = 30,hjust=1),
+        axis.text.y = element_text(size = 5),
+        axis.title = element_text(size = 7),
+        legend.direction = "horizontal",legend.position = "top",
+        legend.justification = c(0, 1),
+        legend.title=element_text(size=6), 
+        legend.text=element_text(size=5),
+        legend.key.size =unit(2, 'mm'),
+        axis.line = element_line(linewidth  = 0.25),
+        aspect.ratio = 0.6)
+
+b
+
+
+#PYMkd_  cdf plot####
+
+PYMkdvsControlDESeq<-read_tsv("DESeqResults/PYMkdvsControlDESeq_tpm0.1.tsv")
+#analysis with robert's PTC+ and PTC- list
+PTClist <- read.delim("~/OneDrive - The Ohio State University/Singhlab/Bioinfo/CASC3/ENST_PTC-EPI-TFG.txt")
+
+names(PYMkdvsControlDESeq)[7] <- "ENST.ID"
+PYMkdvsControlDESeq$ENST.ID <- sub("\\..*", "", PYMkdvsControlDESeq$ENST.ID)
+length(intersect(PYMkdvsControlDESeq$ENST.ID,PTClist$ENST.ID))
+
+PYMkdvsControlDESeq<-inner_join(PYMkdvsControlDESeq, PTClist, by = "ENST.ID")
+
+
+#PYM kd Filtered PTC+/- CDF#####
+
+#Removing transcriptids that dont pass SMG6/7 filtering
+
+FilteredPYMkdvsControlDESeq<-read_tsv("DESeqResults/FilteredPYMkdvsControlDESeq.tsv")
+
+# calculate pairwise p-values (for example, Wilcoxon test)
+p_values <- pairwise.wilcox.test(
+  FilteredPYMkdvsControlDESeq$log2FoldChange, 
+  FilteredPYMkdvsControlDESeq$PTC.Status, 
+  p.adjust.method = "bonferroni"
+)$p.value
+wilcox.test(log2FoldChange ~ PTC.Status, 
+            data = FilteredPYMkdvsControlDESeq )
+
+# Convert p-values to a readable format for display
+# Extract and format p-values correctly based on row and column names
+pval_text <- paste("p-values(Wilcoxon test):",
+                   paste(format(p_values, digits = 2)),  # "c vs l"
+                   sep = "\n")
+
+# Calculate the number of genes in each group
+group_counts <- FilteredPYMkdvsControlDESeq %>%
+  group_by(PTC.Status) %>%
+  dplyr::summarize(count = n(), .groups = 'drop')
+
+# Create formatted labels with counts
+labels_with_counts <- paste(group_counts$PTC.Status, 
+                            " (", group_counts$count, ")", sep = "")
+labels_with_counts <-str_replace(labels_with_counts,"TRUE","PTC+")
+labels_with_counts <-str_replace(labels_with_counts,"FALSE","PTC-")
+
+# plotting as before
+c<-FilteredPYMkdvsControlDESeq %>%
+  ggplot(aes(log2FoldChange, color = PTC.Status)) +
+  geom_vline(aes(xintercept = 0), linewidth = 0.02)+
+  geom_hline(aes(yintercept = 0.5), linewidth = 0.02)+
+  stat_ecdf(geom = "line", linewidth = 0.8) +
+  scale_color_manual( "PTC Status",values = c("FALSE" = "grey45", "TRUE" = "red3"), 
+                      labels = labels_with_counts) +  # Change legend text
+  coord_cartesian(xlim = c(-2, 2)) +
+  theme_linedraw() +
+  theme(
+    axis.text = element_text(size = 5),
+    axis.title = element_text(size = 7),
+    panel.grid.major = element_blank(), 
+    panel.grid.minor = element_blank(),
+    aspect.ratio = 1,
+    legend.position = c(0.98, 0.02),         # Move legend to bottom right
+    legend.justification = c(1, 0),    # Ensure correct alignment at bottom right
+    legend.title=element_text(size=6), 
+    legend.text=element_text(size=5),
+    legend.key.size =unit(2, 'mm')     
+  ) +
+  labs(y = "Cumulative frequency", x = "log2FC PYM1kd/Control") +
+  annotate("text", x = -1.9, y = 0.92, label = pval_text, hjust = 0, size = 2, color = "black")  # Add p-values on top left
+c+labs(title = "PYM1kd vs Control",  caption = "SMG6/7 validated")
+
+
+
+#QPCR plot#####
+
+
+qPCRdata<-read_csv("qPCRdata.csv")
+
+#analyzing
+table(qPCRdata$Target)
+
+##Replacing PTC- with NOR
+qPCRdata$Target<-str_replace_all(qPCRdata$Target,"PTC-", "NOR")
+
+
+qPCRdata<-qPCRdata%>%filter(!Target %in% c("B-actin","TBP"))
+qPCRdata%>%filter(Target == "GAPDH")
+
+qPCRdata$Gene<-str_split(qPCRdata$Target,"\\_",simplify = T)[,1]
+table(qPCRdata$Gene)
+
+qPCRdata%>%filter(Gene=="RPS9")
+print(n = 81,
+      qPCRdata%>%filter(Gene=="RPS9")%>%arrange(File,Sample,Target))
+
+qPCRdata<-qPCRdata%>%mutate(Replicate = str_split(File, "Q", simplify = T)[,1])
+print(n = 181,
+      qPCRdata%>%group_by(File,Sample,Target)%>%dplyr::count())
+
+print(n = 181,
+      qPCRdata%>%group_by(Replicate,Sample,Target)%>%dplyr::count())
+
+
+###Data wrangling
+qPCRdata<-qPCRdata%>% mutate(NewColumn = File)
+
+
+
+qPCRdata<-qPCRdata%>% mutate(NewColumn = case_when(Replicate == "R2" ~ "R2",
+                                                   Replicate == "R3" ~ "R3",
+                                                   TRUE ~ NewColumn))
+table(qPCRdata$NewColumn)
+table(qPCRdata$Replicate)
+qPCRdata<-qPCRdata%>% mutate(RepSample = paste0(NewColumn, "_",Sample))
+
+qPCRdata<-qPCRdata%>% mutate(FileSample = paste0(File, "_",Sample))
+
+qPCRdata%>%filter(File=="R1Q1" & Target =="GAPDH")
+
+library(Rmisc)
+CqSummary <- summarySE(qPCRdata, measurevar="Cq", groupvars=c("FileSample","Target"))
+#CqSummary <- summarySE(qPCRdata, measurevar="Cq", groupvars=c("RepSample","Target"))
+
+
+delcqdf<-tibble()
+for(i in unique(CqSummary$FileSample)){
+  print(i)
+  filteredCqsummary<-CqSummary%>%filter(FileSample==i)%>%mutate(
+    Delcq = Cq - filter(CqSummary,FileSample==i&Target=="GAPDH")[,4] )
+  delcqdf<-rbind(delcqdf,filteredCqsummary)
+}
+delcqdf<-mutate(delcqdf, Rel.levels = 2^-Delcq)
+
+
+#Normalizing to respective Nluc
+#create a column that says Nluc instead of Nluc_2 or Nluc_3
+delcqdf$Sampletype<-str_split(delcqdf$FileSample,"_",simplify = T)[,2]
+#Create a column that says replicate number instead of Nluc_2 or Nluc_3
+delcqdf$RepNo<-str_split(delcqdf$FileSample,"_",simplify = T)[,1]
+
+finalNormdf<-tibble()
+for(j in unique(delcqdf$RepNo)){
+  print(j)
+  for(i in unique(delcqdf$Target)){
+    print(i)
+    finaldf<-delcqdf%>%filter(RepNo==j&Target==i)
+    finaldf<-finaldf%>%mutate(
+      Rel.Norm.Levels = Rel.levels/filter(finaldf,Sampletype=="siNC"&Target==i)[,9] )
+    finalNormdf<-rbind(finalNormdf,finaldf)
+  }}
+
+names(finaldf)
+
+###modified plot
+library(wesanderson)
+library(RColorBrewer)
+
+table(finalNormdf$RepNo)
+table(finalNormdf$Sampletype)
+table(finalNormdf$Target)
+str_replace(finalNormdf$Target, "NOR", "PTC-")
+finalNormdf<-finalNormdf%>%mutate(Target = str_replace(Target, "NOR", "PTC-"),
+                                  Sampletype = str_replace(Sampletype, "eIF4A3", "EIF4A3"))
+
+finalNormdf<-finalNormdf%>%mutate(Targets=str_split(Target,"\\_", simplify = T)[,1])
+finalNormdf<-finalNormdf%>%mutate(PTC_status=str_split(Target,"\\_", simplify = T)[,2])
+finalNormdf$Sampletype = factor(finalNormdf$Sampletype, levels = c('siNC', 'si PYM1', 'si EIF4A3', 'si UPF1'))
+finalNormdf<-finalNormdf%>%filter(Sampletype!="si UPF1")%>%filter(!Target %in%c("RPS9_PTC+","RPS9_PTC-"))%>%
+  mutate(log2fc=log(x = Rel.Norm.Levels,base = 2))
+
+d<-finalNormdf%>%
+  ggplot(aes(factor(Target, levels = c("GAPDH","GAS5","ZFAS1","RPS9_PTC-","RPS9_PTC+","RSRC2_PTC-","RSRC2_PTC+",
+                                       "SRSF3_PTC-","SRSF3_PTC+","SRSF2_PTC-","SRSF2_PTC+","SRSF6_PTC+")),
+             Rel.Norm.Levels,
+             fill=Sampletype))+
+  geom_hline(yintercept = 1, size = 0.5, linetype =3, color = "grey")+
+  stat_summary(fun = mean, geom = "bar", position = "dodge", width= 0.6)+
+  stat_summary(fun.data = mean_se, geom = "errorbar",width = 0.2, position = position_dodge(width = 0.6))+
+  geom_point(aes(group = Sampletype),
+             shape = 1, size = 0.3,
+             position = position_dodge(width = 0.6)) +
+  scale_fill_manual(values = c("grey60","#DE7D57","red3"))+
+  #geom_point(position = position_dodge(width = 0.6), size = 0.5)+
+  theme_classic()+
+  labs(#title="Normalized RNA levels - NMD factor depletion",
+    #subtitle = "3 Bio replicates, normalized to GAPDH and siNC",
+    x = "Targets",y="Relative RNA levels")+
+  guides(fill=guide_legend(title="Sample"))+
+  theme(panel.grid.major = element_line(linetype = "blank"), 
+        panel.grid.minor = element_line(linetype = "blank"),
+        axis.text.x = element_text(size = 5,angle = 60,hjust=1),
+        axis.text.y = element_text(size = 5),
+        axis.title = element_text(size = 7),
+        legend.direction = "horizontal",legend.position = "top",
+        legend.justification = c(0, 1),
+        legend.title=element_text(size=6), 
+        legend.text=element_text(size=5),
+        legend.key.size =unit(2, 'mm'),
+        axis.line = element_line(linewidth  = 0.25),
+        aspect.ratio = 0.6)
+d
+
+####
+
+
+# Make sure RepNo is consistent and numeric for correct pairing
+finalNormdf <- finalNormdf %>%
+  mutate(RepNo2 = as.numeric(gsub("[^0-9]", "", RepNo)))  # extract number if needed
+
+# Initialize empty results dataframe
+test_results <- data.frame(
+  Target = character(),
+  Comparison = character(),
+  t_statistic = numeric(),
+  df = numeric(),
+  p_value = numeric(),
+  stringsAsFactors = FALSE
+)
+
+# List of unique targets
+targets <- unique(finalNormdf$Target)
+
+# Define comparisons
+comparisons <- list(
+  c("siNC", "si PYM1"),
+  c("siNC", "si EIF4A3")
+)
+
+# Loop through each target
+for (tgt in targets) {
+  print(tgt)
+  for (cmp in comparisons) {
+    comp1 <- cmp[1]
+    comp2 <- cmp[2]
+    print(cmp[2])
+    # Subset and reshape data for paired comparison
+    sub_df <- finalNormdf %>%
+      filter(Target == tgt, Sampletype %in% c(comp1, comp2)) %>%
+      dplyr::select(RepNo, Sampletype, log2fc) %>%
+      pivot_wider(names_from = Sampletype, values_from = log2fc)
+    
+    # Skip if both conditions not present or not enough data
+    if (!all(c(comp1, comp2) %in% names(sub_df))) next
+    sub_df <- drop_na(sub_df)
+    if (nrow(sub_df) < 2) next  # need at least 2 paired values
+    
+    # Perform one-tailed paired t-test: treatment > control (siX > siNC)
+    test <- t.test(sub_df[[comp2]], sub_df[[comp1]],
+                   paired = TRUE, alternative = "greater")
+    
+    # Append results
+    test_results <- rbind(test_results, data.frame(
+      Target = tgt,
+      Comparison = paste(comp2, "vs", comp1),
+      t_statistic = unname(test$statistic),
+      df = unname(test$parameter),
+      p_value = unname(test$p.value),
+      stringsAsFactors = FALSE
+    ))
+  }
+}
+
+# Apply Bonferroni correction across all tests
+test_results$p_adjusted <- p.adjust(test_results$p_value, method = "bonferroni")
+
+# View results
+print(test_results)
+
+
+
+
+
+##Patchwork
+library(patchwork)
+layout <- c(
+  area(1,1,2,2),area(1, 3, 2,5),
+  area(3,1,4,2),area(3,3,4,5))
+plot(layout)
+a+b+c+d+plot_layout(design = layout)+
+  plot_annotation(title = 'FIGURE 5', tag_levels = "A")  &
+  theme(plot.tag = element_text(face = 'bold')) 
+ggsave("F5patch3test.pdf",
+       a+b+c+d+plot_layout(design = layout)+
+         plot_annotation(title = 'FIGURE 5', tag_levels = "a")  &
+         theme(plot.tag = element_text(face = 'bold')),
+       width = 8.5, 
+       height = 11, 
+       units = "in")
+
+layout <- c(
+  area(1,1,3,3),area(4, 1, 5,3),
+  area(6,1,8,3),area(9,1,10,3))
+plot(layout)
+
+
+ggsave("F5final.pdf",
+       a+b+c+d+plot_layout(design = layout)+
+         plot_annotation(tag_levels = "a") &
+         theme(panel.background = element_blank(),
+               plot.tag = element_text(face = 'bold'),
+               plot.background = element_blank(),
+               plot.margin = unit(c(0, 0, 0, 0), "cm")),
+       width = 180,
+       height = 130,
+       units = "mm")
