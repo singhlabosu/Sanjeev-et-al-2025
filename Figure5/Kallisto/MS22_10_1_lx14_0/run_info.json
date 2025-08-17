@@ -1,0 +1,9 @@
+{
+	"n_targets": 190522,
+	"n_bootstraps": 100,
+	"n_processed": 46246947,
+	"kallisto_version": "0.43.1",
+	"index_version": 10,
+	"start_time": "Mon Mar 27 15:45:41 2023",
+	"call": "kallisto quant -t 14 -i /fs/scratch/PAS1067/manusanjeev/Refs/kallistotxindex.idx -o /fs/scratch/PAS1067/manusanjeev/PYM/kallisto/MS22_10_1_lx14_0 -b 100 MS22_10_1_lx14_0read1.fq MS22_10_1_lx14_0read2.fq"
+}
